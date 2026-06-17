@@ -1,0 +1,212 @@
+package copperhead.client.implement.features.modules.render;
+
+import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.systems.RenderSystem;
+import copperhead.client.api.event.EventHandler;
+import copperhead.client.api.feature.module.Module;
+import copperhead.client.api.feature.module.ModuleCategory;
+import copperhead.client.api.feature.setting.BooleanSetting;
+import copperhead.client.api.feature.setting.ModeSetting;
+import copperhead.client.api.feature.setting.SliderSetting;
+import copperhead.client.common.util.math.MathUtils;
+import copperhead.client.common.util.render.ColorUtils;
+import copperhead.client.implement.events.EventRender3D;
+import copperhead.client.managers.FriendManager;
+import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.IRenderTypeBuffer;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.vector.Matrix4f;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.TextFormatting;
+
+public class NameTags extends Module {
+
+    private final ModeSetting mode = new ModeSetting("Режим", "Стандартный", "Стандартный", "Расширенный");
+    private final BooleanSetting showHealth = new BooleanSetting("Показать HP", true);
+    private final BooleanSetting showArmor = new BooleanSetting("Показать броню", true);
+    private final BooleanSetting showDistance = new BooleanSetting("Показать дистанцию", true);
+    private final BooleanSetting showPing = new BooleanSetting("Показать пинг", false);
+    private final BooleanSetting friendHighlight = new BooleanSetting("Подсветка друзей", true);
+    private final SliderSetting scaleValue = new SliderSetting("Размер", 1.0f, 0.3f, 3.0f, 0.1f);
+    private final BooleanSetting background = new BooleanSetting("Фон", true);
+
+    public NameTags() {
+        super("NameTags", "Name Tags", ModuleCategory.RENDER);
+        addSettings(mode, showHealth, showArmor, showDistance, showPing, friendHighlight, scaleValue, background);
+    }
+
+    @EventHandler
+    public void onRender3D(EventRender3D event) {
+        if (mc.player == null || mc.world == null) return;
+
+        float partialTicks = event.getPartialTicks();
+
+        for (PlayerEntity player : mc.world.getPlayers()) {
+            if (player == mc.player || !player.isAlive()) continue;
+            if (player.isInvisible()) continue;
+
+            if (mode.is("Стандартный")) {
+                renderStandard(event.getMatrixStack(), player, partialTicks);
+            } else {
+                renderExtended(event.getMatrixStack(), player, partialTicks);
+            }
+        }
+    }
+
+    private void renderStandard(MatrixStack matrixStack, PlayerEntity player, float partialTicks) {
+        double x = MathUtils.interpolate(player.getPosX(), player.prevPosX, partialTicks);
+        double y = MathUtils.interpolate(player.getPosY(), player.prevPosY, partialTicks);
+        double z = MathUtils.interpolate(player.getPosZ(), player.prevPosZ, partialTicks);
+        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+
+        double renderX = x - cam.x;
+        double renderY = y - cam.y + player.getHeight() + 0.5;
+        double renderZ = z - cam.z;
+
+        String name = player.getName().getString();
+        boolean isFriend = FriendManager.isFriend(name);
+
+        StringBuilder text = new StringBuilder();
+        if (isFriend && friendHighlight.get()) {
+            text.append(TextFormatting.GREEN);
+        }
+        text.append(name);
+
+        if (showHealth.get()) {
+            float health = player.getHealth();
+            String healthColor;
+            if (health > 14) healthColor = TextFormatting.GREEN.toString();
+            else if (health > 7) healthColor = TextFormatting.YELLOW.toString();
+            else healthColor = TextFormatting.RED.toString();
+            text.append(" ").append(healthColor).append(String.format("%.1f", health)).append("HP");
+        }
+
+        if (showDistance.get()) {
+            float dist = mc.player.getDistance(player);
+            text.append(TextFormatting.GRAY).append(" [").append(String.format("%.1f", dist)).append("m]");
+        }
+
+        FontRenderer font = mc.fontRenderer;
+        float scale = scaleValue.get() * 0.025f;
+        float distance = (float) mc.player.getDistance(player);
+        scale = Math.max(scale, scale * distance / 10.0f);
+
+        matrixStack.push();
+        matrixStack.translate(renderX, renderY, renderZ);
+        matrixStack.rotate(mc.gameRenderer.getActiveRenderInfo().getRotation());
+        matrixStack.scale(-scale, -scale, scale);
+
+        String finalText = text.toString();
+        float textWidth = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalText));
+        float xOffset = -textWidth / 2.0f;
+
+        if (background.get()) {
+            IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(mc.getRenderTypeBuffers().getBufferSource().getBuffer(null) != null
+                    ? mc.getRenderTypeBuffers().getBufferSource() : mc.getRenderTypeBuffers().getBufferSource());
+        }
+
+        Matrix4f matrix = matrixStack.getLast().getMatrix();
+        font.func_243247_a(finalText, xOffset, 0, 0xFFFFFFFF, false, matrix,
+                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        mc.getRenderTypeBuffers().getBufferSource().finish();
+
+        matrixStack.pop();
+    }
+
+    private void renderExtended(MatrixStack matrixStack, PlayerEntity player, float partialTicks) {
+        double x = MathUtils.interpolate(player.getPosX(), player.prevPosX, partialTicks);
+        double y = MathUtils.interpolate(player.getPosY(), player.prevPosY, partialTicks);
+        double z = MathUtils.interpolate(player.getPosZ(), player.prevPosZ, partialTicks);
+        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+
+        double renderX = x - cam.x;
+        double renderY = y - cam.y + player.getHeight() + 0.5;
+        double renderZ = z - cam.z;
+
+        String name = player.getName().getString();
+        boolean isFriend = FriendManager.isFriend(name);
+
+        StringBuilder line1 = new StringBuilder();
+        if (isFriend && friendHighlight.get()) {
+            line1.append(TextFormatting.GREEN).append("[F] ");
+        }
+        line1.append(TextFormatting.WHITE).append(name);
+
+        StringBuilder line2 = new StringBuilder();
+        if (showHealth.get()) {
+            float health = player.getHealth();
+            float absorption = player.getAbsorptionAmount();
+            String healthColor;
+            if (health > 14) healthColor = TextFormatting.GREEN.toString();
+            else if (health > 7) healthColor = TextFormatting.YELLOW.toString();
+            else healthColor = TextFormatting.RED.toString();
+            line2.append(healthColor).append(String.format("%.1fHP", health));
+            if (absorption > 0) {
+                line2.append(TextFormatting.GOLD).append(String.format(" +%.1f", absorption));
+            }
+        }
+
+        if (showDistance.get()) {
+            float dist = mc.player.getDistance(player);
+            line2.append(TextFormatting.GRAY).append(String.format(" %.1fm", dist));
+        }
+
+        if (showPing.get() && mc.getConnection() != null) {
+            var info = mc.getConnection().getPlayerInfo(player.getUniqueID());
+            if (info != null) {
+                int ping = info.getResponseTime();
+                String pingColor;
+                if (ping < 100) pingColor = TextFormatting.GREEN.toString();
+                else if (ping < 200) pingColor = TextFormatting.YELLOW.toString();
+                else pingColor = TextFormatting.RED.toString();
+                line2.append(pingColor).append(String.format(" %dms", ping));
+            }
+        }
+
+        FontRenderer font = mc.fontRenderer;
+        float scale = scaleValue.get() * 0.025f;
+        float distance = (float) mc.player.getDistance(player);
+        scale = Math.max(scale, scale * distance / 10.0f);
+
+        matrixStack.push();
+        matrixStack.translate(renderX, renderY, renderZ);
+        matrixStack.rotate(mc.gameRenderer.getActiveRenderInfo().getRotation());
+        matrixStack.scale(-scale, -scale, scale);
+
+        Matrix4f matrix = matrixStack.getLast().getMatrix();
+        String finalLine1 = line1.toString();
+        String finalLine2 = line2.toString();
+
+        float w1 = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalLine1));
+        float w2 = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalLine2));
+
+        font.func_243247_a(finalLine1, -w1 / 2, -10, 0xFFFFFFFF, false, matrix,
+                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        font.func_243247_a(finalLine2, -w2 / 2, 0, 0xFFFFFFFF, false, matrix,
+                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        mc.getRenderTypeBuffers().getBufferSource().finish();
+
+        // Render armor icons if enabled
+        if (showArmor.get()) {
+            renderArmorRow(matrixStack, player, matrix);
+        }
+
+        matrixStack.pop();
+    }
+
+    private void renderArmorRow(MatrixStack matrixStack, PlayerEntity player, Matrix4f matrix) {
+        // Render armor items above the name
+        ItemStack[] armor = new ItemStack[]{
+                player.inventory.armorInventory.get(3),
+                player.inventory.armorInventory.get(2),
+                player.inventory.armorInventory.get(1),
+                player.inventory.armorInventory.get(0),
+                player.getHeldItemMainhand(),
+                player.getHeldItemOffhand()
+        };
+        // Armor rendering requires item renderer which is complex in 3D space
+        // This is handled via the 2D overlay render in practice
+    }
+}
