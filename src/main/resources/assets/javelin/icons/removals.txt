@@ -1,0 +1,3 @@
+Icon for Removals module (formerly NoRender, formerly "Group 28").
+Place the actual icon file here as removals.png.
+The old path "Group 28" has been renamed to "removals".
