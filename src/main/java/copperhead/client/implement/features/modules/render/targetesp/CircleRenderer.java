@@ -45,18 +45,18 @@ public class CircleRenderer extends BaseTargetRenderer {
         animatedRadius = MathUtils.clamp(animatedRadius, MIN_RADIUS, MAX_RADIUS);
 
         // Animate height oscillation
-        float heightOsc = (float) (Math.sin(now / 600.0) * 0.3 + 0.5) * target.getHeight();
+        float heightOsc = (float) (Math.sin(now / 600.0) * 0.3 + 0.5) * target.getBbHeight();
         animatedHeight += (heightOsc - animatedHeight) * 0.1f;
 
         // Alpha
         animatedAlpha = 0.6f + 0.3f * (float) Math.sin(now / 400.0);
 
         // Calculate interpolated position
-        double x = MathUtils.interpolate(target.getPosX(), target.prevPosX, partialTicks);
-        double y = MathUtils.interpolate(target.getPosY(), target.prevPosY, partialTicks);
-        double z = MathUtils.interpolate(target.getPosZ(), target.prevPosZ, partialTicks);
+        double x = MathUtils.interpolate(target.getX(), target.xo, partialTicks);
+        double y = MathUtils.interpolate(target.getY(), target.yo, partialTicks);
+        double z = MathUtils.interpolate(target.getZ(), target.zo, partialTicks);
 
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         RenderSystem.pushMatrix();
         RenderSystem.translated(x - cam.x, y - cam.y, z - cam.z);
@@ -93,27 +93,27 @@ public class CircleRenderer extends BaseTargetRenderer {
 
     private void drawCircle(float radius, float height, float r, float g, float b, float a) {
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuilder();
 
         buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION_COLOR);
         for (int i = 0; i <= CIRCLE_SEGMENTS; i++) {
             double angle = Math.PI * 2.0 * i / CIRCLE_SEGMENTS;
             float cx = (float) (Math.cos(angle) * radius);
             float cz = (float) (Math.sin(angle) * radius);
-            buffer.pos(cx, height, cz).color(r, g, b, a).endVertex();
+            buffer.vertex(cx, height, cz).color(r, g, b, a).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
 
         // Draw filled semi-transparent circle
         buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
-        buffer.pos(0, height, 0).color(r, g, b, a * 0.3f).endVertex();
+        buffer.vertex(0, height, 0).color(r, g, b, a * 0.3f).endVertex();
         for (int i = 0; i <= CIRCLE_SEGMENTS; i++) {
             double angle = Math.PI * 2.0 * i / CIRCLE_SEGMENTS;
             float cx = (float) (Math.cos(angle) * radius);
             float cz = (float) (Math.sin(angle) * radius);
-            buffer.pos(cx, height, cz).color(r, g, b, 0.0f).endVertex();
+            buffer.vertex(cx, height, cz).color(r, g, b, 0.0f).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
     }
 
     @Override

@@ -36,9 +36,9 @@ public class FriendCord extends Module {
         List<String> friends = FriendManager.getFriends();
         if (friends.isEmpty()) return;
 
-        double x = mc.player.getPosX();
-        double y = mc.player.getPosY();
-        double z = mc.player.getPosZ();
+        double x = mc.player.getX();
+        double y = mc.player.getY();
+        double z = mc.player.getZ();
 
         String coords;
         if (roundCoords.get()) {
@@ -58,7 +58,7 @@ public class FriendCord extends Module {
         }
 
         for (String friend : friends) {
-            mc.player.sendChatMessage("/msg " + friend + " " + coords);
+            mc.player.chat("/msg " + friend + " " + coords);
         }
     }
 

@@ -40,7 +40,7 @@ public class NoSlow extends Module {
 
     @EventHandler
     public void onSlow(EventNoSlow event) {
-        if (mc.player == null || mc.player.isElytraFlying() || !mc.player.isHandActive()) {
+        if (mc.player == null || mc.player.isFallFlying() || !mc.player.isUsingItem()) {
             return;
         }
 
@@ -68,10 +68,10 @@ public class NoSlow extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate event) {
-        if (mc.player == null || mc.player.isElytraFlying()) return;
+        if (mc.player == null || mc.player.isFallFlying()) return;
 
         if (mode.is("ReallyWorld")) {
-            ticks = mc.player.isHandActive() ? ticks + 1 : 0;
+            ticks = mc.player.isUsingItem() ? ticks + 1 : 0;
         }
 
         if (mode.is("LonyGrief")) {
@@ -87,51 +87,51 @@ public class NoSlow extends Module {
     }
 
     private void handleGrimTick(EventNoSlow event) {
-        if (mc.player.ticksExisted % 2 == 0 && !mc.player.isSneaking()) {
+        if (mc.player.tickCount % 2 == 0 && !mc.player.isShiftKeyDown()) {
             event.cancel();
         }
     }
 
     private void handleGrim(EventNoSlow event) {
-        boolean offHandActive = mc.player.getActiveHand() == Hand.OFF_HAND;
-        boolean mainHandActive = mc.player.getActiveHand() == Hand.MAIN_HAND;
+        boolean offHandActive = mc.player.getUsedItemHand() == Hand.OFF_HAND;
+        boolean mainHandActive = mc.player.getUsedItemHand() == Hand.MAIN_HAND;
 
-        if (!(mc.player.getItemInUseCount() < 25 && mc.player.getItemInUseCount() > 4)
-                && mc.player.getHeldItemOffhand().getItem() != Items.SHIELD) {
+        if (!(mc.player.getUseItemRemainingTicks() < 25 && mc.player.getUseItemRemainingTicks() > 4)
+                && mc.player.getOffhandItem().getItem() != Items.SHIELD) {
             return;
         }
 
         if (!mc.player.isPassenger()) {
-            mc.player.connection.sendPacket(new CHeldItemChangePacket(mc.player.inventory.currentItem));
+            mc.player.connection.send(new CHeldItemChangePacket(mc.player.inventory.selected));
 
-            if (offHandActive && !mc.player.getCooldownTracker().hasCooldown(mc.player.getHeldItemOffhand().getItem())) {
-                int oldSlot = mc.player.inventory.currentItem;
+            if (offHandActive && !mc.player.getCooldowns().isOnCooldown(mc.player.getOffhandItem().getItem())) {
+                int oldSlot = mc.player.inventory.selected;
                 int fakeSlot = oldSlot + 1 > 8 ? oldSlot - 1 : oldSlot + 1;
 
-                mc.player.connection.sendPacket(new CHeldItemChangePacket(fakeSlot));
-                mc.player.connection.sendPacket(new CHeldItemChangePacket(oldSlot));
+                mc.player.connection.send(new CHeldItemChangePacket(fakeSlot));
+                mc.player.connection.send(new CHeldItemChangePacket(oldSlot));
                 mc.player.setSprinting(false);
                 event.cancel();
             }
 
-            if (mainHandActive && !mc.player.getCooldownTracker().hasCooldown(mc.player.getHeldItemMainhand().getItem())) {
-                mc.player.connection.sendPacket(new CPlayerTryUseItemPacket(Hand.OFF_HAND));
-                if (mc.player.getHeldItemOffhand().getItem().getUseAction(mc.player.getHeldItemOffhand()) == UseAction.NONE) {
+            if (mainHandActive && !mc.player.getCooldowns().isOnCooldown(mc.player.getMainHandItem().getItem())) {
+                mc.player.connection.send(new CPlayerTryUseItemPacket(Hand.OFF_HAND));
+                if (mc.player.getOffhandItem().getItem().getUseAnimation(mc.player.getOffhandItem()) == UseAction.NONE) {
                     event.cancel();
                 }
             }
 
-            mc.player.connection.sendPacket(new CHeldItemChangePacket(mc.player.inventory.currentItem));
+            mc.player.connection.send(new CHeldItemChangePacket(mc.player.inventory.selected));
         }
     }
 
     private void handleLonyGrief(EventNoSlow event) {
-        if (mc.player.getActiveHand() == Hand.OFF_HAND) {
+        if (mc.player.getUsedItemHand() == Hand.OFF_HAND) {
             handleGrimTick(event);
             return;
         }
 
-        if (mc.player.getItemInUseMaxCount() > 0) {
+        if (mc.player.getTicksUsingItem() > 0) {
             event.cancel();
         }
     }
@@ -139,11 +139,11 @@ public class NoSlow extends Module {
     private void handleLonyGriefUpdate() {
         if (mc.player.connection == null) return;
 
-        if (mc.player.isHandActive() && mc.player.getItemInUseMaxCount() == 0) {
-            mc.player.connection.sendPacket(new CPlayerDiggingPacket(
+        if (mc.player.isUsingItem() && mc.player.getTicksUsingItem() == 0) {
+            mc.player.connection.send(new CPlayerDiggingPacket(
                     CPlayerDiggingPacket.Action.DROP_ALL_ITEMS,
                     BlockPos.ZERO,
-                    mc.player.getHorizontalFacing()
+                    mc.player.getDirection()
             ));
         }
     }
@@ -152,21 +152,21 @@ public class NoSlow extends Module {
         boolean falling = mc.player.fallDistance > 0.725f;
         event.cancel();
 
-        if (mc.player.isOnGround() && !mc.player.movementInput.jump) {
-            if (mc.player.ticksExisted % 2 == 0) {
-                float speedMultiplier = mc.player.movementInput.moveStrafe == 0.0f ? 0.5f : 0.4f;
-                mc.player.setMotion(
-                        mc.player.getMotion().x * speedMultiplier,
-                        mc.player.getMotion().y,
-                        mc.player.getMotion().z * speedMultiplier
+        if (mc.player.isOnGround() && !mc.player.input.jumping) {
+            if (mc.player.tickCount % 2 == 0) {
+                float speedMultiplier = mc.player.input.leftImpulse == 0.0f ? 0.5f : 0.4f;
+                mc.player.setDeltaMovement(
+                        mc.player.getDeltaMovement().x * speedMultiplier,
+                        mc.player.getDeltaMovement().y,
+                        mc.player.getDeltaMovement().z * speedMultiplier
                 );
             }
         } else if (falling) {
             float speedMultiplier = mc.player.fallDistance > 1.4f ? 0.95f : 0.97f;
-            mc.player.setMotion(
-                    mc.player.getMotion().x * speedMultiplier,
-                    mc.player.getMotion().y,
-                    mc.player.getMotion().z * speedMultiplier
+            mc.player.setDeltaMovement(
+                    mc.player.getDeltaMovement().x * speedMultiplier,
+                    mc.player.getDeltaMovement().y,
+                    mc.player.getDeltaMovement().z * speedMultiplier
             );
         }
     }

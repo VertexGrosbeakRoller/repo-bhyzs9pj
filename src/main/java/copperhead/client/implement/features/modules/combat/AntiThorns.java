@@ -25,7 +25,7 @@ public class AntiThorns extends Module {
             return;
         }
 
-        if (mc.player.isElytraFlying()) {
+        if (mc.player.isFallFlying()) {
             elytraThornsVelocityTicks = ELYTRA_THORNS_VELOCITY_TICKS;
         }
 
@@ -34,7 +34,7 @@ public class AntiThorns extends Module {
 
     @EventHandler
     public void onPacket(EventPacket event) {
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             elytraThornsVelocityTicks = 0;
             return;
         }
@@ -45,9 +45,9 @@ public class AntiThorns extends Module {
 
         if (event.getPacket() instanceof SEntityStatusPacket) {
             SEntityStatusPacket packet = (SEntityStatusPacket) event.getPacket();
-            if (packet.getOpCode() == THORNS_STATUS
-                    && packet.getEntity(mc.world) == mc.player
-                    && mc.player.isElytraFlying()) {
+            if (packet.getEventId() == THORNS_STATUS
+                    && packet.getEntity(mc.level) == mc.player
+                    && mc.player.isFallFlying()) {
                 elytraThornsVelocityTicks = ELYTRA_THORNS_VELOCITY_TICKS;
                 return;
             }
@@ -55,7 +55,7 @@ public class AntiThorns extends Module {
 
         if (event.getPacket() instanceof SEntityVelocityPacket) {
             SEntityVelocityPacket packet = (SEntityVelocityPacket) event.getPacket();
-            if (packet.getEntityID() == mc.player.getEntityId()
+            if (packet.getId() == mc.player.getId()
                     && shouldCancelElytraThornsVelocity()) {
                 event.cancel();
                 elytraThornsVelocityTicks = 0;
@@ -65,7 +65,7 @@ public class AntiThorns extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate event) {
-        if (mc.player == null || !mc.player.isElytraFlying()) {
+        if (mc.player == null || !mc.player.isFallFlying()) {
             elytraThornsVelocityTicks = 0;
             return;
         }
@@ -88,6 +88,6 @@ public class AntiThorns extends Module {
     }
 
     private boolean shouldCancelElytraThornsVelocity() {
-        return elytraThornsVelocityTicks > 0 && mc.player.isElytraFlying();
+        return elytraThornsVelocityTicks > 0 && mc.player.isFallFlying();
     }
 }

@@ -42,7 +42,7 @@ public class AncientDebris extends Module {
 
     @EventHandler
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         // Scan every 20 ticks
         scanTick++;
@@ -52,7 +52,7 @@ public class AncientDebris extends Module {
         }
 
         float partialTicks = e.getPartialTicks();
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         RenderSystem.pushMatrix();
         RenderSystem.enableBlend();
@@ -67,7 +67,7 @@ public class AncientDebris extends Module {
         float[] fillRGBA = ColorUtils.rgba(fColor);
 
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuilder();
 
         for (BlockPos pos : foundBlocks) {
             double x = pos.getX() - cam.x;
@@ -85,11 +85,11 @@ public class AncientDebris extends Module {
             // Draw tracer line
             if (tracerLines.get()) {
                 buffer.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
-                buffer.pos(0, mc.player.getEyeHeight() - (cam.y - mc.player.getPosY()), 0)
+                buffer.vertex(0, mc.player.getEyeHeight() - (cam.y - mc.player.getY()), 0)
                         .color(outRGBA[0], outRGBA[1], outRGBA[2], outRGBA[3]).endVertex();
-                buffer.pos(x + 0.5, y + 0.5, z + 0.5)
+                buffer.vertex(x + 0.5, y + 0.5, z + 0.5)
                         .color(outRGBA[0], outRGBA[1], outRGBA[2], outRGBA[3]).endVertex();
-                tessellator.draw();
+                tessellator.end();
             }
         }
 
@@ -101,16 +101,16 @@ public class AncientDebris extends Module {
 
     private void scanForDebris() {
         foundBlocks.clear();
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        int radius = (int) searchRadius.get();
-        BlockPos playerPos = mc.player.getPosition();
+        int radius = (int) searchRadius.get().floatValue();
+        BlockPos playerPos = mc.player.blockPosition();
 
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    BlockPos pos = playerPos.add(x, y, z);
-                    BlockState state = mc.world.getBlockState(pos);
+                    BlockPos pos = playerPos.offset(x, y, z);
+                    BlockState state = mc.level.getBlockState(pos);
                     if (state.getBlock() == Blocks.ANCIENT_DEBRIS) {
                         foundBlocks.add(pos);
                     }
@@ -127,36 +127,36 @@ public class AncientDebris extends Module {
                                float r, float g, float b, float a) {
         buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
         // Bottom face
-        buffer.pos(x, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex();
         // Top face
-        buffer.pos(x, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex();
         // Front
-        buffer.pos(x, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex();
         // Back
-        buffer.pos(x, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex();
         // Left
-        buffer.pos(x, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex();
         // Right
-        buffer.pos(x + w, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex();
-        tess.draw();
+        buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex();
+        tess.end();
     }
 
     private void drawOutlineBox(BufferBuilder buffer, Tessellator tess,
@@ -164,20 +164,20 @@ public class AncientDebris extends Module {
                                 float r, float g, float b, float a) {
         buffer.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
         // Bottom
-        buffer.pos(x, y, z).color(r, g, b, a).endVertex(); buffer.pos(x + w, y, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z).color(r, g, b, a).endVertex(); buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex(); buffer.pos(x, y, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y, z + d).color(r, g, b, a).endVertex(); buffer.pos(x, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x, y, z).color(r, g, b, a).endVertex();
         // Top
-        buffer.pos(x, y + h, z).color(r, g, b, a).endVertex(); buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex(); buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex(); buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex(); buffer.pos(x, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex();
         // Verticals
-        buffer.pos(x, y, z).color(r, g, b, a).endVertex(); buffer.pos(x, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z).color(r, g, b, a).endVertex(); buffer.pos(x + w, y + h, z).color(r, g, b, a).endVertex();
-        buffer.pos(x + w, y, z + d).color(r, g, b, a).endVertex(); buffer.pos(x + w, y + h, z + d).color(r, g, b, a).endVertex();
-        buffer.pos(x, y, z + d).color(r, g, b, a).endVertex(); buffer.pos(x, y + h, z + d).color(r, g, b, a).endVertex();
-        tess.draw();
+        buffer.vertex(x, y, z).color(r, g, b, a).endVertex(); buffer.vertex(x, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y + h, z).color(r, g, b, a).endVertex();
+        buffer.vertex(x + w, y, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x + w, y + h, z + d).color(r, g, b, a).endVertex();
+        buffer.vertex(x, y, z + d).color(r, g, b, a).endVertex(); buffer.vertex(x, y + h, z + d).color(r, g, b, a).endVertex();
+        tess.end();
     }
 }

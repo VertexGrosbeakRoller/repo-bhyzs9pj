@@ -79,7 +79,7 @@ public class Speed extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         switch (modeSetting.get()) {
             case "Strafe": handleStrafe(false); break;
@@ -108,27 +108,27 @@ public class Speed extends Module {
 
     private void handleStrafe(boolean strict) {
         boolean inFluid = mc.player.isInWater() || mc.player.isInLava();
-        boolean inCobweb = mc.world.getBlockState(mc.player.getPosition()).getBlock() == Blocks.COBWEB;
+        boolean inCobweb = mc.level.getBlockState(mc.player.blockPosition()).getBlock() == Blocks.COBWEB;
 
-        if (mc.player.isSneaking() || mc.player.isElytraFlying() || mc.player.isOnLadder()
+        if (mc.player.isShiftKeyDown() || mc.player.isFallFlying() || mc.player.onClimbable()
                 || (inFluid && !speedInWater.get()) || inCobweb
-                || mc.player.abilities.isFlying || mc.player.fallDistance >= 5.0f) {
+                || mc.player.abilities.flying || mc.player.fallDistance >= 5.0f) {
             stage = 1;
             return;
         }
 
         if (!MoveUtils.isMoving()) { stage = 1; return; }
 
-        double dx = mc.player.getPosX() - mc.player.prevPosX;
-        double dz = mc.player.getPosZ() - mc.player.prevPosZ;
+        double dx = mc.player.getX() - mc.player.xo;
+        double dz = mc.player.getZ() - mc.player.zo;
         distance = Math.sqrt(dx * dx + dz * dz);
 
         double base = getPotionSpeed(0.2873);
-        float forward = mc.player.movementInput.moveForward;
+        float forward = mc.player.input.forwardImpulse;
         strafeSpeed = base * (forward <= 0.0f && lastForward > 0.0f ? 0.66 : 1.0);
 
         if (stage == 1 && mc.player.isOnGround()) {
-            mc.player.setMotion(mc.player.getMotion().x, getPotionJump(0.42), mc.player.getMotion().z);
+            mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, getPotionJump(0.42), mc.player.getDeltaMovement().z);
             strafeSpeed *= 2.149;
             stage = 2;
         } else if (stage == 2) {
@@ -150,40 +150,40 @@ public class Speed extends Module {
     }
 
     private void handleMotion() {
-        if (mc.player.isElytraFlying() || !MoveUtils.isMoving()) return;
-        if (mc.player.isOnGround() && autoJump.get()) mc.player.jump();
+        if (mc.player.isFallFlying() || !MoveUtils.isMoving()) return;
+        if (mc.player.isOnGround() && autoJump.get()) mc.player.jumpFromGround();
         setHorizontalMotion(motionSpeed.get());
     }
 
     private void handleMatrix() {
-        if (mc.player.isElytraFlying()) return;
-        if (mc.player.isOnGround() && MoveUtils.isMoving()) mc.player.jump();
-        Vector3d motion = mc.player.getMotion();
+        if (mc.player.isFallFlying()) return;
+        if (mc.player.isOnGround() && MoveUtils.isMoving()) mc.player.jumpFromGround();
+        Vector3d motion = mc.player.getDeltaMovement();
         if (motion.y == -0.4448259643949201) {
-            mc.player.setMotion(motion.x * 2.4, motion.y, motion.z * 2.4);
+            mc.player.setDeltaMovement(motion.x * 2.4, motion.y, motion.z * 2.4);
         }
     }
 
     private void handleGrimCollision() {
-        AxisAlignedBB aabb = mc.player.getBoundingBox().grow(growValueSlider.get());
-        int armorStands = mc.world.getEntitiesWithinAABB(ArmorStandEntity.class, aabb).size();
-        int living = mc.world.getEntitiesWithinAABB(LivingEntity.class, aabb).size();
+        AxisAlignedBB aabb = mc.player.getBoundingBox().inflate(growValueSlider.get());
+        int armorStands = mc.level.getEntitiesOfClass(ArmorStandEntity.class, aabb).size();
+        int living = mc.level.getEntitiesOfClass(LivingEntity.class, aabb).size();
         boolean canBoost = armorStands > 1 || living > 1;
 
         if (canBoost && !mc.player.isOnGround()) {
-            mc.player.jumpMovementFactor = armorStands > 1
+            mc.player.flyingSpeed = armorStands > 1
                     ? speedValue.get() / armorStands
                     : speedValue.get() * 0.16f;
         }
     }
 
     private void handleMetaHvH() {
-        if (mc.player.isElytraFlying()) return;
+        if (mc.player.isFallFlying()) return;
 
-        ItemStack offHandItem = mc.player.getHeldItemOffhand();
-        EffectInstance speedEffect = mc.player.getActivePotionEffect(Effects.SPEED);
-        EffectInstance slownessEffect = mc.player.getActivePotionEffect(Effects.SLOWNESS);
-        String itemName = offHandItem.getDisplayName().getString();
+        ItemStack offHandItem = mc.player.getOffhandItem();
+        EffectInstance speedEffect = mc.player.getEffect(Effects.MOVEMENT_SPEED);
+        EffectInstance slownessEffect = mc.player.getEffect(Effects.MOVEMENT_SLOWDOWN);
+        String itemName = offHandItem.getHoverName().getString();
         float speedToApply;
 
         if (metaMode.is("Default")) {
@@ -211,8 +211,8 @@ public class Speed extends Module {
     }
 
     private void handleHolyWorld() {
-        if (!MoveUtils.isMoving() || mc.player.isElytraFlying()
-                || mc.player.isOnLadder() || mc.player.isInWater() || mc.player.isInLava()) {
+        if (!MoveUtils.isMoving() || mc.player.isFallFlying()
+                || mc.player.onClimbable() || mc.player.isInWater() || mc.player.isInLava()) {
             holyBoostTicks = 0;
             return;
         }
@@ -226,10 +226,10 @@ public class Speed extends Module {
         double radius = holyRadiusSlider.get();
         double radiusSq = radius * radius;
 
-        for (PlayerEntity entity : mc.world.getPlayers()) {
+        for (PlayerEntity entity : mc.level.players()) {
             if (entity == null || entity == mc.player || !entity.isAlive()) continue;
-            double dx = entity.getPosX() - mc.player.getPosX();
-            double dz = entity.getPosZ() - mc.player.getPosZ();
+            double dx = entity.getX() - mc.player.getX();
+            double dz = entity.getZ() - mc.player.getZ();
             double distSq = dx * dx + dz * dz;
             if (distSq <= radiusSq && distSq < closestDist) {
                 closestDist = distSq;
@@ -239,14 +239,14 @@ public class Speed extends Module {
 
         if (closest == null) return;
 
-        Vector3d self = mc.player.getPositionVec();
-        double yaw = Math.atan2(closest.getPosZ() - self.z, closest.getPosX() - self.x) - Math.PI / 2.0;
+        Vector3d self = mc.player.position();
+        double yaw = Math.atan2(closest.getZ() - self.z, closest.getX() - self.x) - Math.PI / 2.0;
         double boost = holySpeedSlider.get() / 10.0;
 
-        Vector3d motion = mc.player.getMotion();
+        Vector3d motion = mc.player.getDeltaMovement();
         double addX = -Math.sin(yaw) * boost;
         double addZ = Math.cos(yaw) * boost;
-        mc.player.setMotion(motion.x + addX, motion.y, motion.z + addZ);
+        mc.player.setDeltaMovement(motion.x + addX, motion.y, motion.z + addZ);
     }
 
     private boolean isStrafe() {
@@ -254,26 +254,26 @@ public class Speed extends Module {
     }
 
     private double getPotionSpeed(double speed) {
-        if (mc.player.isPotionActive(Effects.SPEED))
-            speed *= 1.0 + 0.2 * (mc.player.getActivePotionEffect(Effects.SPEED).getAmplifier() + 1);
-        if (mc.player.isPotionActive(Effects.SLOWNESS))
-            speed /= 1.0 + 0.2 * (mc.player.getActivePotionEffect(Effects.SLOWNESS).getAmplifier() + 1);
+        if (mc.player.hasEffect(Effects.MOVEMENT_SPEED))
+            speed *= 1.0 + 0.2 * (mc.player.getEffect(Effects.MOVEMENT_SPEED).getAmplifier() + 1);
+        if (mc.player.hasEffect(Effects.MOVEMENT_SLOWDOWN))
+            speed /= 1.0 + 0.2 * (mc.player.getEffect(Effects.MOVEMENT_SLOWDOWN).getAmplifier() + 1);
         return speed;
     }
 
     private double getPotionJump(double jump) {
-        if (mc.player.isPotionActive(Effects.JUMP_BOOST))
-            jump += (mc.player.getActivePotionEffect(Effects.JUMP_BOOST).getAmplifier() + 1) * 0.1;
+        if (mc.player.hasEffect(Effects.JUMP))
+            jump += (mc.player.getEffect(Effects.JUMP).getAmplifier() + 1) * 0.1;
         return jump;
     }
 
     private void setHorizontalMotion(double speed) {
-        double forward = mc.player.movementInput.moveForward;
-        double strafe = mc.player.movementInput.moveStrafe;
-        float yaw = mc.player.rotationYaw;
+        double forward = mc.player.input.forwardImpulse;
+        double strafe = mc.player.input.leftImpulse;
+        float yaw = mc.player.yRot;
 
         if (forward == 0.0 && strafe == 0.0) {
-            mc.player.setMotion(0.0, mc.player.getMotion().y, 0.0);
+            mc.player.setDeltaMovement(0.0, mc.player.getDeltaMovement().y, 0.0);
             return;
         }
         if (forward != 0.0) {
@@ -287,9 +287,9 @@ public class Speed extends Module {
 
         double mx = Math.cos(Math.toRadians(yaw + 90.0f));
         double mz = Math.sin(Math.toRadians(yaw + 90.0f));
-        mc.player.setMotion(
+        mc.player.setDeltaMovement(
                 forward * speed * mx + strafe * speed * mz,
-                mc.player.getMotion().y,
+                mc.player.getDeltaMovement().y,
                 forward * speed * mz - strafe * speed * mx
         );
     }

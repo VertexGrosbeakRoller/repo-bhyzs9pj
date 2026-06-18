@@ -5,7 +5,6 @@ import copperhead.client.api.feature.module.Module;
 import copperhead.client.api.feature.module.ModuleCategory;
 import copperhead.client.api.feature.setting.BooleanSetting;
 import copperhead.client.api.feature.setting.SliderSetting;
-import copperhead.client.common.util.entity.InventoryUtils;
 import copperhead.client.implement.events.EventUpdate;
 import net.minecraft.block.BlockState;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -21,10 +20,6 @@ import net.minecraft.util.math.RayTraceResult;
 
 import java.util.List;
 
-/**
- * AutoTool — автоматически выбирает лучший инструмент.
- * Поддержка: все предметы, свап из инвентаря, авто-зелье по ПКМ.
- */
 public class AutoTool extends Module {
 
     private final BooleanSetting allItems = new BooleanSetting("Все предметы", true);
@@ -50,35 +45,33 @@ public class AutoTool extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null || mc.playerController == null) return;
+        if (mc.player == null || mc.level == null || mc.gameMode == null) return;
 
-        // Auto potion on right-click
-        if (autoPotion.get() && mc.gameSettings.keyBindUseItem.isKeyDown()) {
+        if (autoPotion.get() && mc.options.keyUse.isDown()) {
             handleAutoPotion();
         }
 
-        // Auto tool on block break
-        if (mc.gameSettings.keyBindAttack.isKeyDown()
-                && mc.objectMouseOver != null
-                && mc.objectMouseOver.getType() == RayTraceResult.Type.BLOCK) {
-            BlockRayTraceResult blockResult = (BlockRayTraceResult) mc.objectMouseOver;
-            BlockState state = mc.world.getBlockState(blockResult.getPos());
+        if (mc.options.keyAttack.isDown()
+                && mc.hitResult != null
+                && mc.hitResult.getType() == RayTraceResult.Type.BLOCK) {
+            BlockRayTraceResult blockResult = (BlockRayTraceResult) mc.hitResult;
+            BlockState state = mc.level.getBlockState(blockResult.getBlockPos());
 
             if (!wasBreaking) {
-                previousSlot = mc.player.inventory.currentItem;
+                previousSlot = mc.player.inventory.selected;
                 breakStartTime = System.currentTimeMillis();
                 wasBreaking = true;
             }
 
             int bestSlot = findBestTool(state);
             if (bestSlot != -1) {
-                mc.player.inventory.currentItem = bestSlot;
+                mc.player.inventory.selected = bestSlot;
             }
         } else {
             if (wasBreaking && switchBack.get() && previousSlot != -1) {
                 long elapsed = System.currentTimeMillis() - breakStartTime;
-                if (elapsed >= switchBackDelay.get()) {
-                    mc.player.inventory.currentItem = previousSlot;
+                if (elapsed >= (long) switchBackDelay.get().floatValue()) {
+                    mc.player.inventory.selected = previousSlot;
                     previousSlot = -1;
                 }
             }
@@ -90,9 +83,8 @@ public class AutoTool extends Module {
         float bestSpeed = 1.0f;
         int bestSlot = -1;
 
-        // Check hotbar first
         for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.inventory.getStackInSlot(i);
+            ItemStack stack = mc.player.inventory.getItem(i);
             float speed = getDestroySpeed(stack, state);
             if (speed > bestSpeed || (speed == bestSpeed && hasPriorityEnchant(stack))) {
                 bestSpeed = speed;
@@ -100,16 +92,14 @@ public class AutoTool extends Module {
             }
         }
 
-        // Check inventory if enabled and no good tool in hotbar
         if (inventorySwap.get() && bestSlot == -1) {
             for (int i = 9; i < 36; i++) {
-                ItemStack stack = mc.player.inventory.getStackInSlot(i);
+                ItemStack stack = mc.player.inventory.getItem(i);
                 float speed = getDestroySpeed(stack, state);
                 if (speed > bestSpeed) {
                     bestSpeed = speed;
-                    // Move to hotbar via inventory click
-                    int targetHotbar = mc.player.inventory.currentItem;
-                    mc.playerController.windowClick(0, i, targetHotbar,
+                    int targetHotbar = mc.player.inventory.selected;
+                    mc.gameMode.handleInventoryMouseClick(0, i, targetHotbar,
                             ClickType.SWAP, mc.player);
                     return targetHotbar;
                 }
@@ -124,14 +114,12 @@ public class AutoTool extends Module {
 
         float speed = stack.getDestroySpeed(state);
 
-        // All items mode — consider any item
         if (!allItems.get() && !(stack.getItem() instanceof ToolItem)
                 && !(stack.getItem() instanceof ShearsItem)) {
             return 1.0f;
         }
 
-        // Efficiency enchantment
-        int efficiency = EnchantmentHelper.getEnchantmentLevel(Enchantments.EFFICIENCY, stack);
+        int efficiency = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY, stack);
         if (efficiency > 0 && speed > 1.0f) {
             speed += efficiency * efficiency + 1;
         }
@@ -140,10 +128,10 @@ public class AutoTool extends Module {
     }
 
     private boolean hasPriorityEnchant(ItemStack stack) {
-        if (silkTouch.get() && EnchantmentHelper.getEnchantmentLevel(Enchantments.SILK_TOUCH, stack) > 0) {
+        if (silkTouch.get() && EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, stack) > 0) {
             return true;
         }
-        if (fortune.get() && EnchantmentHelper.getEnchantmentLevel(Enchantments.FORTUNE, stack) > 0) {
+        if (fortune.get() && EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, stack) > 0) {
             return true;
         }
         return false;
@@ -152,48 +140,44 @@ public class AutoTool extends Module {
     private void handleAutoPotion() {
         if (mc.player == null) return;
 
-        // Look for potions in hotbar
         for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.inventory.getStackInSlot(i);
+            ItemStack stack = mc.player.inventory.getItem(i);
             if (stack.getItem() instanceof PotionItem || stack.getItem() instanceof SplashPotionItem) {
-                List<EffectInstance> effects = PotionUtils.getEffectsFromStack(stack);
+                List<EffectInstance> effects = PotionUtils.getMobEffects(stack);
                 boolean allPositive = effects.stream().allMatch(eff ->
-                        eff.getPotion().getEffectType() == EffectType.BENEFICIAL);
+                        eff.getEffect().getCategory() == EffectType.BENEFICIAL);
 
                 if (onlyPositiveEffects.get() && !allPositive) continue;
 
-                // Check if we already have these effects
                 boolean alreadyHas = effects.stream().allMatch(eff ->
-                        mc.player.isPotionActive(eff.getPotion()));
+                        mc.player.hasEffect(eff.getEffect()));
                 if (alreadyHas) continue;
 
-                int prevSlot = mc.player.inventory.currentItem;
-                mc.player.inventory.currentItem = i;
-                mc.playerController.processRightClick(mc.player, mc.world, Hand.MAIN_HAND);
-                mc.player.inventory.currentItem = prevSlot;
+                int prevSlot = mc.player.inventory.selected;
+                mc.player.inventory.selected = i;
+                mc.gameMode.useItem(mc.player, mc.level, Hand.MAIN_HAND);
+                mc.player.inventory.selected = prevSlot;
                 break;
             }
         }
 
-        // Check inventory for potions if inventory swap is enabled
         if (inventorySwap.get()) {
             for (int i = 9; i < 36; i++) {
-                ItemStack stack = mc.player.inventory.getStackInSlot(i);
+                ItemStack stack = mc.player.inventory.getItem(i);
                 if (stack.getItem() instanceof SplashPotionItem) {
-                    List<EffectInstance> effects = PotionUtils.getEffectsFromStack(stack);
+                    List<EffectInstance> effects = PotionUtils.getMobEffects(stack);
                     boolean allPositive = effects.stream().allMatch(eff ->
-                            eff.getPotion().getEffectType() == EffectType.BENEFICIAL);
+                            eff.getEffect().getCategory() == EffectType.BENEFICIAL);
                     if (onlyPositiveEffects.get() && !allPositive) continue;
 
                     boolean alreadyHas = effects.stream().allMatch(eff ->
-                            mc.player.isPotionActive(eff.getPotion()));
+                            mc.player.hasEffect(eff.getEffect()));
                     if (alreadyHas) continue;
 
-                    // Swap to hotbar
-                    int targetSlot = mc.player.inventory.currentItem;
-                    mc.playerController.windowClick(0, i, targetSlot, ClickType.SWAP, mc.player);
-                    mc.playerController.processRightClick(mc.player, mc.world, Hand.MAIN_HAND);
-                    mc.playerController.windowClick(0, i, targetSlot, ClickType.SWAP, mc.player);
+                    int targetSlot = mc.player.inventory.selected;
+                    mc.gameMode.handleInventoryMouseClick(0, i, targetSlot, ClickType.SWAP, mc.player);
+                    mc.gameMode.useItem(mc.player, mc.level, Hand.MAIN_HAND);
+                    mc.gameMode.handleInventoryMouseClick(0, i, targetSlot, ClickType.SWAP, mc.player);
                     break;
                 }
             }
@@ -203,7 +187,7 @@ public class AutoTool extends Module {
     @Override
     public void onDisable() {
         if (previousSlot != -1 && mc.player != null) {
-            mc.player.inventory.currentItem = previousSlot;
+            mc.player.inventory.selected = previousSlot;
             previousSlot = -1;
         }
         wasBreaking = false;

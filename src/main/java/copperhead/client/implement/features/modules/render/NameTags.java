@@ -19,6 +19,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.vector.Matrix4f;
 import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.client.network.play.NetworkPlayerInfo;
 import net.minecraft.util.text.TextFormatting;
 
 public class NameTags extends Module {
@@ -39,11 +40,11 @@ public class NameTags extends Module {
 
     @EventHandler
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         float partialTicks = event.getPartialTicks();
 
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (PlayerEntity player : mc.level.players()) {
             if (player == mc.player || !player.isAlive()) continue;
             if (player.isInvisible()) continue;
 
@@ -56,13 +57,13 @@ public class NameTags extends Module {
     }
 
     private void renderStandard(MatrixStack matrixStack, PlayerEntity player, float partialTicks) {
-        double x = MathUtils.interpolate(player.getPosX(), player.prevPosX, partialTicks);
-        double y = MathUtils.interpolate(player.getPosY(), player.prevPosY, partialTicks);
-        double z = MathUtils.interpolate(player.getPosZ(), player.prevPosZ, partialTicks);
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        double x = MathUtils.interpolate(player.getX(), player.xo, partialTicks);
+        double y = MathUtils.interpolate(player.getY(), player.yo, partialTicks);
+        double z = MathUtils.interpolate(player.getZ(), player.zo, partialTicks);
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         double renderX = x - cam.x;
-        double renderY = y - cam.y + player.getHeight() + 0.5;
+        double renderY = y - cam.y + player.getBbHeight() + 0.5;
         double renderZ = z - cam.z;
 
         String name = player.getName().getString();
@@ -84,45 +85,42 @@ public class NameTags extends Module {
         }
 
         if (showDistance.get()) {
-            float dist = mc.player.getDistance(player);
+            float dist = mc.player.distanceTo(player);
             text.append(TextFormatting.GRAY).append(" [").append(String.format("%.1f", dist)).append("m]");
         }
 
-        FontRenderer font = mc.fontRenderer;
+        FontRenderer font = mc.font;
         float scale = scaleValue.get() * 0.025f;
-        float distance = (float) mc.player.getDistance(player);
+        float distance = (float) mc.player.distanceTo(player);
         scale = Math.max(scale, scale * distance / 10.0f);
 
-        matrixStack.push();
+        matrixStack.pushPose();
         matrixStack.translate(renderX, renderY, renderZ);
-        matrixStack.rotate(mc.gameRenderer.getActiveRenderInfo().getRotation());
+        matrixStack.mulPose(mc.gameRenderer.getMainCamera().rotation());
         matrixStack.scale(-scale, -scale, scale);
 
         String finalText = text.toString();
-        float textWidth = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalText));
+        float textWidth = font.width(finalText);
         float xOffset = -textWidth / 2.0f;
 
-        if (background.get()) {
-            IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(mc.getRenderTypeBuffers().getBufferSource().getBuffer(null) != null
-                    ? mc.getRenderTypeBuffers().getBufferSource() : mc.getRenderTypeBuffers().getBufferSource());
-        }
 
-        Matrix4f matrix = matrixStack.getLast().getMatrix();
-        font.func_243247_a(finalText, xOffset, 0, 0xFFFFFFFF, false, matrix,
-                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
-        mc.getRenderTypeBuffers().getBufferSource().finish();
 
-        matrixStack.pop();
+        Matrix4f matrix = matrixStack.last().pose();
+        font.drawInBatch(finalText, xOffset, 0, 0xFFFFFFFF, false, matrix,
+                mc.renderBuffers().bufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        mc.renderBuffers().bufferSource().endBatch();
+
+        matrixStack.popPose();
     }
 
     private void renderExtended(MatrixStack matrixStack, PlayerEntity player, float partialTicks) {
-        double x = MathUtils.interpolate(player.getPosX(), player.prevPosX, partialTicks);
-        double y = MathUtils.interpolate(player.getPosY(), player.prevPosY, partialTicks);
-        double z = MathUtils.interpolate(player.getPosZ(), player.prevPosZ, partialTicks);
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        double x = MathUtils.interpolate(player.getX(), player.xo, partialTicks);
+        double y = MathUtils.interpolate(player.getY(), player.yo, partialTicks);
+        double z = MathUtils.interpolate(player.getZ(), player.zo, partialTicks);
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         double renderX = x - cam.x;
-        double renderY = y - cam.y + player.getHeight() + 0.5;
+        double renderY = y - cam.y + player.getBbHeight() + 0.5;
         double renderZ = z - cam.z;
 
         String name = player.getName().getString();
@@ -149,14 +147,14 @@ public class NameTags extends Module {
         }
 
         if (showDistance.get()) {
-            float dist = mc.player.getDistance(player);
+            float dist = mc.player.distanceTo(player);
             line2.append(TextFormatting.GRAY).append(String.format(" %.1fm", dist));
         }
 
         if (showPing.get() && mc.getConnection() != null) {
-            var info = mc.getConnection().getPlayerInfo(player.getUniqueID());
+            NetworkPlayerInfo info = mc.getConnection().getPlayerInfo(player.getUUID());
             if (info != null) {
-                int ping = info.getResponseTime();
+                int ping = info.getLatency();
                 String pingColor;
                 if (ping < 100) pingColor = TextFormatting.GREEN.toString();
                 else if (ping < 200) pingColor = TextFormatting.YELLOW.toString();
@@ -165,46 +163,46 @@ public class NameTags extends Module {
             }
         }
 
-        FontRenderer font = mc.fontRenderer;
+        FontRenderer font = mc.font;
         float scale = scaleValue.get() * 0.025f;
-        float distance = (float) mc.player.getDistance(player);
+        float distance = (float) mc.player.distanceTo(player);
         scale = Math.max(scale, scale * distance / 10.0f);
 
-        matrixStack.push();
+        matrixStack.pushPose();
         matrixStack.translate(renderX, renderY, renderZ);
-        matrixStack.rotate(mc.gameRenderer.getActiveRenderInfo().getRotation());
+        matrixStack.mulPose(mc.gameRenderer.getMainCamera().rotation());
         matrixStack.scale(-scale, -scale, scale);
 
-        Matrix4f matrix = matrixStack.getLast().getMatrix();
+        Matrix4f matrix = matrixStack.last().pose();
         String finalLine1 = line1.toString();
         String finalLine2 = line2.toString();
 
-        float w1 = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalLine1));
-        float w2 = font.getStringWidth(TextFormatting.getTextWithoutFormattingCodes(finalLine2));
+        float w1 = font.width(finalLine1);
+        float w2 = font.width(finalLine2);
 
-        font.func_243247_a(finalLine1, -w1 / 2, -10, 0xFFFFFFFF, false, matrix,
-                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
-        font.func_243247_a(finalLine2, -w2 / 2, 0, 0xFFFFFFFF, false, matrix,
-                mc.getRenderTypeBuffers().getBufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
-        mc.getRenderTypeBuffers().getBufferSource().finish();
+        font.drawInBatch(finalLine1, -w1 / 2, -10, 0xFFFFFFFF, false, matrix,
+                mc.renderBuffers().bufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        font.drawInBatch(finalLine2, -w2 / 2, 0, 0xFFFFFFFF, false, matrix,
+                mc.renderBuffers().bufferSource(), true, background.get() ? 0x80000000 : 0, 15728880);
+        mc.renderBuffers().bufferSource().endBatch();
 
         // Render armor icons if enabled
         if (showArmor.get()) {
             renderArmorRow(matrixStack, player, matrix);
         }
 
-        matrixStack.pop();
+        matrixStack.popPose();
     }
 
     private void renderArmorRow(MatrixStack matrixStack, PlayerEntity player, Matrix4f matrix) {
         // Render armor items above the name
         ItemStack[] armor = new ItemStack[]{
-                player.inventory.armorInventory.get(3),
-                player.inventory.armorInventory.get(2),
-                player.inventory.armorInventory.get(1),
-                player.inventory.armorInventory.get(0),
-                player.getHeldItemMainhand(),
-                player.getHeldItemOffhand()
+                player.inventory.armor.get(3),
+                player.inventory.armor.get(2),
+                player.inventory.armor.get(1),
+                player.inventory.armor.get(0),
+                player.getMainHandItem(),
+                player.getOffhandItem()
         };
         // Armor rendering requires item renderer which is complex in 3D space
         // This is handled via the 2D overlay render in practice

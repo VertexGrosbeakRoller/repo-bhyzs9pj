@@ -30,30 +30,20 @@ public class AntiBot extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        if (mode.is("UniAC") && removeFromWorld.get()) {
-            for (Entity entity : new ArrayList<>(bot)) {
-                if (entity instanceof PlayerEntity && hiddenBotIds.contains(entity.getEntityId())) {
-                    mc.world.removeEntityFromWorld(entity.getEntityId());
-                }
-            }
-        } else {
-            hiddenBotIds.clear();
-        }
-
-        for (Entity entity : mc.world.getAllEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof PlayerEntity) || entity.equals(mc.player)) continue;
             PlayerEntity player = (PlayerEntity) entity;
             boolean isBot = false;
 
             if (mode.is("ReallyWorld")) {
-                boolean hasFullFood = player.getFoodStats().getFoodLevel() == 20;
-                boolean hasValidArmor = player.inventory.armorInventory.stream()
+                boolean hasFullFood = player.getFoodData().getFoodLevel() == 20;
+                boolean hasValidArmor = player.inventory.armor.stream()
                         .allMatch(armorItem -> armorItem.getItem() != Items.AIR
                                 && armorItem.isEnchantable() && !armorItem.isDamaged());
-                boolean hasValidEquipment = player.getHeldItemOffhand().getItem() == Items.AIR
-                        && player.inventory.armorInventory.stream().anyMatch(armorItem ->
+                boolean hasValidEquipment = player.getOffhandItem().getItem() == Items.AIR
+                        && player.inventory.armor.stream().anyMatch(armorItem ->
                         armorItem.getItem() == Items.LEATHER_BOOTS
                                 || armorItem.getItem() == Items.LEATHER_LEGGINGS
                                 || armorItem.getItem() == Items.LEATHER_CHESTPLATE
@@ -65,7 +55,7 @@ public class AntiBot extends Module {
                 isBot = hasValidArmor && hasValidEquipment && hasFullFood;
             } else if (mode.is("Matrix")) {
                 isBot = player.isAlive() && !bot.contains(player)
-                        && !player.getUniqueID().equals(PlayerEntity.getOfflineUUID(player.getName().getString()));
+                        && !player.getUUID().equals(PlayerEntity.createPlayerUUID(player.getName().getString()));
             } else if (mode.is("UniAC")) {
                 isBot = isUniACBot(player);
             }
@@ -74,12 +64,12 @@ public class AntiBot extends Module {
                 if (!bot.contains(player)) {
                     bot.add(player);
                     if (mode.is("UniAC") && removeFromWorld.get()) {
-                        hiddenBotIds.add(player.getEntityId());
+                        hiddenBotIds.add(player.getId());
                     }
                 }
             } else {
                 bot.remove(player);
-                hiddenBotIds.remove(player.getEntityId());
+                hiddenBotIds.remove(player.getId());
             }
         }
     }
@@ -87,9 +77,9 @@ public class AntiBot extends Module {
     private boolean isUniACBot(PlayerEntity player) {
         String name = player.getName().getString();
         if (mc.getConnection() == null) return true;
-        for (NetworkPlayerInfo info : mc.getConnection().getPlayerInfoMap()) {
-            if (info.getGameProfile().getName().equals(name)) {
-                ITextComponent display = info.getDisplayName();
+        for (NetworkPlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+            if (info.getProfile().getName().equals(name)) {
+                ITextComponent display = info.getTabListDisplayName();
                 return display == null || display.getString().equals(name);
             }
         }

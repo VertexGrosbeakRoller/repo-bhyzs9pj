@@ -68,12 +68,12 @@ public class GrimGlide extends Module {
     }
 
     private void handleReallyWorld(EventMove event) {
-        if (mc.player == null || mc.world == null || !mc.player.isElytraFlying() || isBoostedByFirework())
+        if (mc.player == null || mc.level == null || !mc.player.isFallFlying() || isBoostedByFirework())
             return;
         if (mc.player.isInWater()) return;
-        Vector3d pos = mc.player.getPositionVec();
+        Vector3d pos = mc.player.position();
 
-        float yaw = mc.player.rotationYaw;
+        float yaw = mc.player.yRot;
         double forward = 0.087;
         double motion = MathUtils.getBps(mc.player, 1);
 
@@ -84,22 +84,22 @@ public class GrimGlide extends Module {
         double dx = -Math.sin(Math.toRadians(yaw)) * forward;
         double dz = Math.cos(Math.toRadians(yaw)) * forward;
 
-        double yMotion = mc.player.getMotion().y;
+        double yMotion = mc.player.getDeltaMovement().y;
 
         // Подъём вверх при нажатии прыжка
-        if (allowAscend.get() && mc.gameSettings.keyBindJump.isKeyDown()) {
+        if (allowAscend.get() && mc.options.keyJump.isDown()) {
             yMotion = ascendSpeed.get();
         }
 
-        mc.player.setVelocity(
+        mc.player.setDeltaMovement(
                 dx * MathUtils.random1(2.5f, 2.71f),
                 yMotion,
                 dz * MathUtils.random(2.5f, 2.71f)
         );
 
-        mc.player.setPosition(pos.getX() + dx, pos.getY(), pos.getZ() + dz);
+        mc.player.setPos(pos.x + dx, pos.y, pos.z + dz);
 
-        mc.player.setVelocity(
+        mc.player.setDeltaMovement(
                 dx * MathUtils.random1(2.5f, 2.71f),
                 yMotion,
                 dz * MathUtils.random(2.5f, 2.71f)
@@ -107,40 +107,40 @@ public class GrimGlide extends Module {
     }
 
     private void handleLonyGrief(EventMove event) {
-        if (mc.player == null || mc.world == null || !mc.player.isElytraFlying()) return;
+        if (mc.player == null || mc.level == null || !mc.player.isFallFlying()) return;
 
         ticksTwo++;
-        Vector3d pos = mc.player.getPositionVec();
-        float yaw = mc.player.rotationYaw;
-        double forward = mc.player.ticksExisted % 2 == 0 ? lgForwardSpeed1.get() : lgForwardSpeed2.get();
+        Vector3d pos = mc.player.position();
+        float yaw = mc.player.yRot;
+        double forward = mc.player.tickCount % 2 == 0 ? lgForwardSpeed1.get() : lgForwardSpeed2.get();
 
         double dx = -Math.sin(Math.toRadians(yaw)) * forward;
         double dz = Math.cos(Math.toRadians(yaw)) * forward;
 
         if (System.currentTimeMillis() - lastTickTime >= lgUpdateDelay.get().longValue() - 4) {
-            mc.player.setPosition(pos.getX() + dx, pos.getY(), pos.getZ() + dz);
+            mc.player.setPos(pos.x + dx, pos.y, pos.z + dz);
             lastTickTime = System.currentTimeMillis();
         }
 
         double yBoost = lgVerticalBoost.get();
         // Подъём вверх при нажатии прыжка
-        if (allowAscend.get() && mc.gameSettings.keyBindJump.isKeyDown()) {
+        if (allowAscend.get() && mc.options.keyJump.isDown()) {
             yBoost = ascendSpeed.get();
         }
 
         if (ticksTwo % lgBoostFrequency.get().intValue() == 0) {
-            mc.player.setVelocity(
+            mc.player.setDeltaMovement(
                     dx * ThreadLocalRandom.current().nextFloat() * (lgBoostMultMax.get() - lgBoostMultMin.get()) + lgBoostMultMin.get(),
-                    mc.player.getMotion().y + yBoost,
+                    mc.player.getDeltaMovement().y + yBoost,
                     dz * ThreadLocalRandom.current().nextFloat() * (lgBoostMultMax.get() - lgBoostMultMin.get()) + lgBoostMultMin.get()
             );
         }
     }
 
     private boolean isBoostedByFirework() {
-        return !mc.world.getEntitiesWithinAABB(
+        return !mc.level.getEntitiesOfClass(
                 FireworkRocketEntity.class,
-                mc.player.getBoundingBox().grow(5.0D),
+                mc.player.getBoundingBox().inflate(5.0D),
                 firework -> firework.isAlive()
         ).isEmpty();
     }

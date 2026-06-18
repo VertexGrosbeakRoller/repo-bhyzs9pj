@@ -41,7 +41,7 @@ public class Ambience extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         // Time manipulation
         if (!timeMode.is("Реальное")) {
@@ -51,9 +51,9 @@ public class Ambience extends Module {
                 case "Ночь": time = 18000; break;
                 case "Закат": time = 12500; break;
                 case "Кастомное": time = customTime.get().longValue(); break;
-                default: time = mc.world.getDayTime(); break;
+                default: time = mc.level.getDayTime(); break;
             }
-            mc.world.func_241114_a_(time);
+            mc.level.setDayTime(time);
         }
     }
 

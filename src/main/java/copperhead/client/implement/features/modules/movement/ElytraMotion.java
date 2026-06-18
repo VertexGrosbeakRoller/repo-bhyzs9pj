@@ -20,21 +20,21 @@ public class ElytraMotion extends Module {
     public void onTick(EventUpdate e) {
         if (mc.player == null) return;
 
-        int lastSlot = mc.player.inventory.currentItem;
-        if (mc.player.inventory.armorInventory.get(2).getItem() == Items.ELYTRA
-                && mc.player.isElytraFlying()
-                && mc.gameSettings.keyBindForward.isKeyDown()) {
+        int lastSlot = mc.player.inventory.selected;
+        if (mc.player.inventory.armor.get(2).getItem() == Items.ELYTRA
+                && mc.player.isFallFlying()
+                && mc.options.keyUp.isDown()) {
             if (InventoryUtils.boolHotbarItem(Items.FIREWORK_ROCKET)) {
                 int fireworkSlot = InventoryUtils.searchHotbarItem(Items.FIREWORK_ROCKET);
                 if (fireworkTick >= 10) {
                     lastTick = true;
-                    mc.player.inventory.currentItem = fireworkSlot;
-                    mc.playerController.processRightClick(mc.player, mc.world, Hand.MAIN_HAND);
-                    mc.player.inventory.currentItem = lastSlot;
+                    mc.player.inventory.selected = fireworkSlot;
+                    mc.gameMode.useItem(mc.player, mc.level, Hand.MAIN_HAND);
+                    mc.player.inventory.selected = lastSlot;
                     fireworkTick = 0;
                 } else fireworkTick++;
                 if (lastTick) {
-                    mc.player.setMotion(0, 0, 0);
+                    mc.player.setDeltaMovement(0, 0, 0);
                 }
             }
         } else {

@@ -20,8 +20,8 @@ public class FollowProcess {
     }
 
     public void followPlayer(String name) {
-        if (baritone.getMinecraft().world == null) return;
-        for (PlayerEntity player : baritone.getMinecraft().world.getPlayers()) {
+        if (baritone.getMinecraft().level == null) return;
+        for (PlayerEntity player : baritone.getMinecraft().level.players()) {
             if (player.getName().getString().equalsIgnoreCase(name)) {
                 follow(player);
                 return;
@@ -47,11 +47,11 @@ public class FollowProcess {
         if (baritone.getMinecraft().player == null) return;
 
         double radius = baritone.getSettings().followRadius;
-        if (baritone.getMinecraft().player.getDistance(target) <= radius) {
+        if (baritone.getMinecraft().player.distanceTo(target) <= radius) {
             return;
         }
 
-        BlockPos targetPos = target.getPosition();
+        BlockPos targetPos = target.blockPosition();
         baritone.getPathingBehavior().setGoal(targetPos);
         baritone.getPathingBehavior().path();
     }

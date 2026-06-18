@@ -85,10 +85,10 @@ public class ServerHelper extends Module {
         if (mc.player == null || mc.player.connection == null) return;
 
         // Process command queue
-        if (!commandQueue.isEmpty() && timer.hasReached((long) commandDelay.get())) {
+        if (!commandQueue.isEmpty() && timer.hasReached((long) commandDelay.get().floatValue())) {
             String cmd = commandQueue.poll();
             if (cmd != null) {
-                mc.player.sendChatMessage(cmd);
+                mc.player.chat(cmd);
                 timer.reset();
             }
         }
@@ -102,7 +102,7 @@ public class ServerHelper extends Module {
             SChatPacket chatPacket = (SChatPacket) event.getPacket();
             if (chatPacket.getType() == ChatType.GAME_INFO) return;
 
-            String message = chatPacket.getChatComponent().getString();
+            String message = chatPacket.getMessage().getString();
             handleChatMessage(message);
         }
     }

@@ -64,16 +64,16 @@ public class Removals extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         // Тряска камеры
         if (applyTo.is("Тряска камеры")) {
-            mc.player.distanceWalkedModified = 0;
+            mc.player.animationSpeed = 0;
         }
 
         // Дождь
         if (applyTo.is("Дождь")) {
-            mc.world.setRainStrength(0);
+            mc.level.setRainLevel(0);
         }
     }
 

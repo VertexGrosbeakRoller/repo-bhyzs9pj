@@ -9,13 +9,13 @@ public final class MoveUtils {
 
     public static boolean isMoving() {
         if (mc.player == null) return false;
-        return mc.player.movementInput.moveForward != 0 || mc.player.movementInput.moveStrafe != 0;
+        return mc.player.input.forwardImpulse != 0 || mc.player.input.leftImpulse != 0;
     }
 
     public static double getSpeed() {
         if (mc.player == null) return 0;
-        double dx = mc.player.getMotion().x;
-        double dz = mc.player.getMotion().z;
+        double dx = mc.player.getDeltaMovement().x;
+        double dz = mc.player.getDeltaMovement().z;
         return Math.sqrt(dx * dx + dz * dz);
     }
 }

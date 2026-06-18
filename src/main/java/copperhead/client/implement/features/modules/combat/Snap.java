@@ -14,10 +14,6 @@ import net.minecraft.util.math.MathHelper;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Snap — очень лёгкая тряска головы + наведение на игрока при ударе.
- * Головотряска еле заметна, чтобы выглядеть максимально легитно.
- */
 public class Snap extends Module {
 
     private final SliderSetting shakeStrength = new SliderSetting("Сила тряски", 0.3f, 0.05f, 2.0f, 0.05f);
@@ -38,34 +34,32 @@ public class Snap extends Module {
     public void onUpdate(EventUpdate e) {
         if (mc.player == null) return;
 
-        // Light head shake (very subtle)
         if (ThreadLocalRandom.current().nextFloat() < shakeFrequency.get()) {
             float shakeYaw = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 2.0f * shakeStrength.get();
             float shakePitch = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 2.0f * shakeStrength.get() * 0.5f;
 
-            float sens = (float) mc.gameSettings.mouseSensitivity;
-            mc.player.rotationYaw += GCDUtil.gcdSnap(shakeYaw, sens);
-            mc.player.rotationPitch += GCDUtil.gcdSnap(shakePitch, sens);
-            mc.player.rotationPitch = MathHelper.clamp(mc.player.rotationPitch, -90, 90);
+            float sens = (float)(double) mc.options.sensitivity;
+            mc.player.yRot += GCDUtil.gcdSnap(shakeYaw, sens);
+            mc.player.xRot += GCDUtil.gcdSnap(shakePitch, sens);
+            mc.player.xRot = MathHelper.clamp(mc.player.xRot, -90, 90);
         }
 
-        // Snap to target on hit
         if (snapTarget != null && snapTicks > 0) {
             snapTicks--;
             float targetYaw = getYawToEntity(snapTarget);
             float targetPitch = getPitchToEntity(snapTarget);
 
-            float yawDiff = MathHelper.wrapDegrees(targetYaw - mc.player.rotationYaw);
-            float pitchDiff = targetPitch - mc.player.rotationPitch;
+            float yawDiff = MathHelper.wrapDegrees(targetYaw - mc.player.yRot);
+            float pitchDiff = targetPitch - mc.player.xRot;
 
             float speed = snapSpeed.get();
-            mc.player.rotationYaw += yawDiff * speed;
-            mc.player.rotationPitch += pitchDiff * speed;
-            mc.player.rotationPitch = MathHelper.clamp(mc.player.rotationPitch, -90, 90);
+            mc.player.yRot += yawDiff * speed;
+            mc.player.xRot += pitchDiff * speed;
+            mc.player.xRot = MathHelper.clamp(mc.player.xRot, -90, 90);
 
-            float sens = (float) mc.gameSettings.mouseSensitivity;
-            mc.player.rotationYaw = GCDUtil.gcdSnap(mc.player.rotationYaw, sens);
-            mc.player.rotationPitch = GCDUtil.gcdSnap(mc.player.rotationPitch, sens);
+            float sens = (float)(double) mc.options.sensitivity;
+            mc.player.yRot = GCDUtil.gcdSnap(mc.player.yRot, sens);
+            mc.player.xRot = GCDUtil.gcdSnap(mc.player.xRot, sens);
 
             if (snapTicks <= 0) {
                 snapTarget = null;
@@ -79,22 +73,22 @@ public class Snap extends Module {
         if (event.getAttacker() != mc.player) return;
 
         Entity target = event.getTarget();
-        if (target instanceof LivingEntity && mc.player.getDistance(target) <= snapDistance.get()) {
+        if (target instanceof LivingEntity && mc.player.distanceTo(target) <= snapDistance.get()) {
             snapTarget = (LivingEntity) target;
             snapTicks = SNAP_DURATION;
         }
     }
 
     private float getYawToEntity(Entity entity) {
-        double dx = entity.getPosX() - mc.player.getPosX();
-        double dz = entity.getPosZ() - mc.player.getPosZ();
+        double dx = entity.getX() - mc.player.getX();
+        double dz = entity.getZ() - mc.player.getZ();
         return (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
     }
 
     private float getPitchToEntity(Entity entity) {
-        double dx = entity.getPosX() - mc.player.getPosX();
-        double dy = (entity.getPosY() + entity.getEyeHeight()) - (mc.player.getPosY() + mc.player.getEyeHeight());
-        double dz = entity.getPosZ() - mc.player.getPosZ();
+        double dx = entity.getX() - mc.player.getX();
+        double dy = (entity.getY() + entity.getEyeHeight()) - (mc.player.getY() + mc.player.getEyeHeight());
+        double dz = entity.getZ() - mc.player.getZ();
         double dist = MathHelper.sqrt(dx * dx + dz * dz);
         return (float) (-Math.toDegrees(Math.atan2(dy, dist)));
     }

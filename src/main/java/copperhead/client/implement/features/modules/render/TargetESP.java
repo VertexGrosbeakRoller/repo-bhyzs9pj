@@ -26,7 +26,7 @@ public class TargetESP extends Module {
 
     @EventHandler
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         // Get target from Aura module
         Aura aura = (Aura) CopperHead.getInstance().getModuleManager().getModule("Aura");

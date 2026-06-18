@@ -38,67 +38,65 @@ public class Aura extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         target = findTarget();
         if (target == null) return;
 
-        // Rotation
         if (rotationMode.is("FunTime")) {
             float targetYaw = getYawToEntity(target);
             float targetPitch = getPitchToEntity(target);
-            boolean canAttack = mc.player.getCooledAttackStrength(0) >= 1.0f;
+            boolean canAttack = mc.player.getAttackStrengthScale(0) >= 1.0f;
 
             float[] result = FunTimeRotation.compute(
-                    lastYaw != 0 ? lastYaw : mc.player.rotationYaw,
-                    lastPitch != 0 ? lastPitch : mc.player.rotationPitch,
+                    lastYaw != 0 ? lastYaw : mc.player.yRot,
+                    lastPitch != 0 ? lastPitch : mc.player.xRot,
                     targetYaw, targetPitch,
                     canAttack, System.currentTimeMillis()
             );
 
-            mc.player.rotationYaw = result[0];
-            mc.player.rotationPitch = result[1];
+            mc.player.yRot = result[0];
+            mc.player.xRot = result[1];
             lastYaw = result[0];
             lastPitch = result[1];
         } else if (rotationMode.is("Snap")) {
-            mc.player.rotationYaw = getYawToEntity(target);
-            mc.player.rotationPitch = getPitchToEntity(target);
+            mc.player.yRot = getYawToEntity(target);
+            mc.player.xRot = getPitchToEntity(target);
         }
 
-        // Attack
-        if (mc.player.getCooledAttackStrength(0) >= 1.0f) {
-            mc.playerController.attackEntity(mc.player, target);
-            mc.player.swingArm(Hand.MAIN_HAND);
+        if (mc.player.getAttackStrengthScale(0) >= 1.0f) {
+            mc.gameMode.attack(mc.player, target);
+            mc.player.swing(Hand.MAIN_HAND);
         }
     }
 
     private LivingEntity findTarget() {
-        List<LivingEntity> entities = StreamSupport.stream(mc.world.getAllEntities().spliterator(), false)
+        List<LivingEntity> entities = StreamSupport.stream(mc.level.entitiesForRendering().spliterator(), false)
                 .filter(e -> e instanceof LivingEntity)
                 .map(e -> (LivingEntity) e)
                 .filter(e -> e != mc.player)
                 .filter(e -> e.isAlive())
-                .filter(e -> mc.player.getDistance(e) <= range.get())
+                .filter(e -> mc.player.distanceTo(e) <= range.get())
                 .filter(e -> !onlyPlayers.get() || e instanceof PlayerEntity)
                 .filter(e -> !(e instanceof PlayerEntity &&
                         ignoreFriends.get() &&
                         FriendManager.isFriend(e.getName().getString())))
-                .sorted(Comparator.comparingDouble(e -> mc.player.getDistance(e)))
+                .sorted(Comparator.comparingDouble(e -> mc.player.distanceTo(e)))
                 .collect(Collectors.toList());
 
         return entities.isEmpty() ? null : entities.get(0);
     }
 
     private float getYawToEntity(Entity entity) {
-        double dx = entity.getPosX() - mc.player.getPosX();
-        double dz = entity.getPosZ() - mc.player.getPosZ();
+        double dx = entity.getX() - mc.player.getX();
+        double dz = entity.getZ() - mc.player.getZ();
         return (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
     }
 
     private float getPitchToEntity(Entity entity) {
-        double dx = entity.getPosX() - mc.player.getPosX();
-        double dy = (entity.getPosY() + entity.getEyeHeight()) - (mc.player.getPosY() + mc.player.getEyeHeight());
-        double dz = entity.getPosZ() - mc.player.getPosZ();
+        double dx = entity.getX() - mc.player.getX();
+        double dy = (entity.getY() + entity.getEyeHeight()) - (mc.player.getY() + mc.player.getEyeHeight());
+        double dz = entity.getZ() - mc.player.getZ();
         double dist = MathHelper.sqrt(dx * dx + dz * dz);
         return (float) (-Math.toDegrees(Math.atan2(dy, dist)));
     }

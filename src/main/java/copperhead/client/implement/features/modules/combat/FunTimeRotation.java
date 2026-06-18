@@ -68,7 +68,7 @@ public final class FunTimeRotation {
         nextPitch = clamp(nextPitch, -89f, 90f);
 
         // GCD Snap
-        float sens = (float) Minecraft.getInstance().gameSettings.mouseSensitivity;
+        float sens = (float)(double) Minecraft.getInstance().options.sensitivity;
         nextYaw = GCDUtil.gcdSnap(nextYaw, sens);
         nextPitch = GCDUtil.gcdSnap(nextPitch, sens);
 

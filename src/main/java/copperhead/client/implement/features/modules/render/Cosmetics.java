@@ -60,8 +60,8 @@ public class Cosmetics extends Module {
 
     @EventHandler
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
-        if (onlyFirstPerson.get() && mc.gameSettings.getPointOfView().func_243192_a() == 0) return;
+        if (mc.player == null || mc.level == null) return;
+        if (onlyFirstPerson.get() && mc.options.getCameraType().ordinal() == 0) return;
 
         float partialTicks = e.getPartialTicks();
 
@@ -69,19 +69,19 @@ public class Cosmetics extends Module {
         if (animated.get()) {
             flapPhase += 0.05f * flapSpeed.get();
             wingAngle = (float) Math.sin(flapPhase) * 20.0f;
-            if (mc.player.isElytraFlying()) {
+            if (mc.player.isFallFlying()) {
                 wingAngle = (float) Math.sin(flapPhase * 2.0f) * 35.0f;
             }
         } else {
             wingAngle = 0.0f;
         }
 
-        double x = MathUtils.interpolate(mc.player.getPosX(), mc.player.prevPosX, partialTicks);
-        double y = MathUtils.interpolate(mc.player.getPosY(), mc.player.prevPosY, partialTicks);
-        double z = MathUtils.interpolate(mc.player.getPosZ(), mc.player.prevPosZ, partialTicks);
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        double x = MathUtils.interpolate(mc.player.getX(), mc.player.xo, partialTicks);
+        double y = MathUtils.interpolate(mc.player.getY(), mc.player.yo, partialTicks);
+        double z = MathUtils.interpolate(mc.player.getZ(), mc.player.zo, partialTicks);
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
-        float yaw = mc.player.rotationYaw;
+        float yaw = mc.player.yRot;
         float s = scale.get();
 
         float[][] wing = getWingPoints();
@@ -99,7 +99,7 @@ public class Cosmetics extends Module {
         GL11.glLineWidth(2.0f);
 
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuilder();
 
         // Left wing
         RenderSystem.pushMatrix();
@@ -107,15 +107,15 @@ public class Cosmetics extends Module {
         RenderSystem.rotatef(wingAngle, 0, 0, 1);
         buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
         for (float[] point : wing) {
-            buffer.pos(point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 0.7f).endVertex();
+            buffer.vertex(point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 0.7f).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
 
         buffer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
         for (float[] point : wing) {
-            buffer.pos(point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 1.0f).endVertex();
+            buffer.vertex(point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 1.0f).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
         RenderSystem.popMatrix();
 
         // Right wing (mirrored)
@@ -124,15 +124,15 @@ public class Cosmetics extends Module {
         RenderSystem.rotatef(-wingAngle, 0, 0, 1);
         buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
         for (float[] point : wing) {
-            buffer.pos(-point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 0.7f).endVertex();
+            buffer.vertex(-point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 0.7f).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
 
         buffer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
         for (float[] point : wing) {
-            buffer.pos(-point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 1.0f).endVertex();
+            buffer.vertex(-point[0] * s, point[1] * s, 0).color(rgba[0], rgba[1], rgba[2], 1.0f).endVertex();
         }
-        tessellator.draw();
+        tessellator.end();
         RenderSystem.popMatrix();
 
         RenderSystem.enableDepthTest();

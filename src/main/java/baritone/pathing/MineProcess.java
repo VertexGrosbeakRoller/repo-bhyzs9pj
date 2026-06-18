@@ -45,17 +45,17 @@ public class MineProcess {
     }
 
     private void scanForBlocks() {
-        if (baritone.getMinecraft().player == null || baritone.getMinecraft().world == null) return;
+        if (baritone.getMinecraft().player == null || baritone.getMinecraft().level == null) return;
         knownLocations.clear();
 
-        BlockPos center = baritone.getMinecraft().player.getPosition();
+        BlockPos center = baritone.getMinecraft().player.blockPosition();
         int radius = 32;
 
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    BlockPos pos = center.add(x, y, z);
-                    if (baritone.getMinecraft().world.getBlockState(pos).getBlock() == targetBlock) {
+                    BlockPos pos = center.offset(x, y, z);
+                    if (baritone.getMinecraft().level.getBlockState(pos).getBlock() == targetBlock) {
                         knownLocations.add(pos);
                     }
                 }

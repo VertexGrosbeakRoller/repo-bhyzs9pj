@@ -14,11 +14,6 @@ import net.minecraft.util.Direction;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 
-/**
- * SuperBow — стрела летит быстрее и сильнее, наносит больше урона.
- * Работает легитно: быстро отпускает и перезаряжает лук,
- * создавая эффект ускоренной стрельбы с полной натяжкой.
- */
 public class SuperBow extends Module {
 
     private final SliderSetting power = new SliderSetting("Сила", 1.0f, 0.1f, 1.0f, 0.05f);
@@ -36,10 +31,10 @@ public class SuperBow extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        boolean holdingBow = mc.player.getHeldItemMainhand().getItem() instanceof BowItem
-                || mc.player.getHeldItemMainhand().getItem() == Items.BOW;
+        boolean holdingBow = mc.player.getMainHandItem().getItem() instanceof BowItem
+                || mc.player.getMainHandItem().getItem() == Items.BOW;
 
         if (!holdingBow) {
             ticksUsing = 0;
@@ -47,22 +42,22 @@ public class SuperBow extends Module {
             return;
         }
 
-        if (mc.player.isHandActive() && mc.player.getActiveHand() == Hand.MAIN_HAND) {
+        if (mc.player.isUsingItem() && mc.player.getUsedItemHand() == Hand.MAIN_HAND) {
             ticksUsing++;
 
             int requiredTicks = (int) (20 / speedMultiplier.get());
-            float chargePercent = BowItem.getArrowVelocity(ticksUsing);
+            float chargePercent = BowItem.getPowerForTime(ticksUsing);
 
             if (onlyFullCharge.get()) {
                 if (chargePercent >= power.get() && !released) {
-                    mc.player.connection.sendPacket(new CPlayerDiggingPacket(
+                    mc.player.connection.send(new CPlayerDiggingPacket(
                             CPlayerDiggingPacket.Action.RELEASE_USE_ITEM,
                             BlockPos.ZERO, Direction.DOWN));
-                    mc.player.stopActiveHand();
+                    mc.player.releaseUsingItem();
                     released = true;
 
                     if (autoRecharge.get()) {
-                        mc.player.connection.sendPacket(new CPlayerTryUseItemPacket(Hand.MAIN_HAND));
+                        mc.player.connection.send(new CPlayerTryUseItemPacket(Hand.MAIN_HAND));
                         ticksUsing = 0;
                         released = false;
                     }

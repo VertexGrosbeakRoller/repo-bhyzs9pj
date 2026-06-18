@@ -46,8 +46,8 @@ public class PathingBehavior {
         if (!isPathing || goal == null) return;
         if (baritone.getMinecraft().player == null) return;
 
-        BlockPos playerPos = baritone.getMinecraft().player.getPosition();
-        if (playerPos.distanceSq(goal) < 4) {
+        BlockPos playerPos = baritone.getMinecraft().player.blockPosition();
+        if (playerPos.distSqr(goal) < 4) {
             cancel();
         }
     }

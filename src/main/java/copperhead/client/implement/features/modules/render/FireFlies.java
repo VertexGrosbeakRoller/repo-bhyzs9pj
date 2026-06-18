@@ -46,20 +46,20 @@ public class FireFlies extends Module {
 
     @EventHandler
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         float partialTicks = e.getPartialTicks();
-        double playerX = MathUtils.interpolate(mc.player.getPosX(), mc.player.prevPosX, partialTicks);
-        double playerY = MathUtils.interpolate(mc.player.getPosY(), mc.player.prevPosY, partialTicks) + 1.0;
-        double playerZ = MathUtils.interpolate(mc.player.getPosZ(), mc.player.prevPosZ, partialTicks);
+        double playerX = MathUtils.interpolate(mc.player.getX(), mc.player.xo, partialTicks);
+        double playerY = MathUtils.interpolate(mc.player.getY(), mc.player.yo, partialTicks) + 1.0;
+        double playerZ = MathUtils.interpolate(mc.player.getZ(), mc.player.zo, partialTicks);
 
         // Spawn new particles
-        while (FIRE_PARTS_LIST.size() < (int) amount.get()) {
+        while (FIRE_PARTS_LIST.size() < (int) amount.get().floatValue()) {
             FIRE_PARTS_LIST.add(new FirePart(playerX, playerY, playerZ));
         }
 
         // Update and render
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         RenderSystem.pushMatrix();
         RenderSystem.enableBlend();
@@ -69,7 +69,7 @@ public class FireFlies extends Module {
         RenderSystem.disableCull();
 
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuilder();
 
         Iterator<FirePart> it = FIRE_PARTS_LIST.iterator();
         while (it.hasNext()) {
@@ -92,21 +92,21 @@ public class FireFlies extends Module {
 
             // Draw as point/small quad
             buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-            buffer.pos(rx - size, ry - size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
-            buffer.pos(rx - size, ry + size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
-            buffer.pos(rx + size, ry - size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
-            buffer.pos(rx + size, ry + size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
-            tessellator.draw();
+            buffer.vertex(rx - size, ry - size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
+            buffer.vertex(rx - size, ry + size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
+            buffer.vertex(rx + size, ry - size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
+            buffer.vertex(rx + size, ry + size, rz).color(rgba[0], rgba[1], rgba[2], part.alpha).endVertex();
+            tessellator.end();
 
             // Bloom glow effect
             if (bloom.get()) {
                 float bloomSize = size * 3.0f;
                 buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-                buffer.pos(rx - bloomSize, ry - bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
-                buffer.pos(rx - bloomSize, ry + bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
-                buffer.pos(rx + bloomSize, ry - bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
-                buffer.pos(rx + bloomSize, ry + bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
-                tessellator.draw();
+                buffer.vertex(rx - bloomSize, ry - bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
+                buffer.vertex(rx - bloomSize, ry + bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
+                buffer.vertex(rx + bloomSize, ry - bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
+                buffer.vertex(rx + bloomSize, ry + bloomSize, rz).color(rgba[0], rgba[1], rgba[2], part.alpha * 0.2f).endVertex();
+                tessellator.end();
             }
         }
 

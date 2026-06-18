@@ -52,28 +52,26 @@ public class Particle extends Module {
         if (!trigger.is("Удар")) return;
         if (event.getAttacker() != mc.player) return;
 
-        double tx = event.getTarget().getPosX();
-        double ty = event.getTarget().getPosY() + event.getTarget().getHeight() / 2;
-        double tz = event.getTarget().getPosZ();
+        double tx = event.getTarget().getX();
+        double ty = event.getTarget().getY() + event.getTarget().getBbHeight() / 2;
+        double tz = event.getTarget().getZ();
         spawnParticles(tx, ty, tz);
     }
 
     @EventHandler
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        // Spawn on movement/always
-        if (trigger.is("Передвижение") && (mc.player.getMotion().lengthSquared() > 0.001)) {
-            if (mc.player.ticksExisted % 3 == 0) {
-                spawnParticles(mc.player.getPosX(), mc.player.getPosY(), mc.player.getPosZ());
+        if (trigger.is("Передвижение") && (mc.player.getDeltaMovement().lengthSqr() > 0.001)) {
+            if (mc.player.tickCount % 3 == 0) {
+                spawnParticles(mc.player.getX(), mc.player.getY(), mc.player.getZ());
             }
-        } else if (trigger.is("Всегда") && mc.player.ticksExisted % 5 == 0) {
-            spawnParticles(mc.player.getPosX(), mc.player.getPosY() + 1.0, mc.player.getPosZ());
+        } else if (trigger.is("Всегда") && mc.player.tickCount % 5 == 0) {
+            spawnParticles(mc.player.getX(), mc.player.getY() + 1.0, mc.player.getZ());
         }
 
-        // Render
         float partialTicks = e.getPartialTicks();
-        Vector3d cam = mc.gameRenderer.getActiveRenderInfo().getProjectedView();
+        Vector3d cam = mc.gameRenderer.getMainCamera().getPosition();
 
         RenderSystem.pushMatrix();
         RenderSystem.enableBlend();
@@ -82,7 +80,7 @@ public class Particle extends Module {
         RenderSystem.disableDepthTest();
 
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
+        BufferBuilder buffer = tessellator.getBuilder();
 
         Iterator<ParticlePart> it = particles.iterator();
         while (it.hasNext()) {
@@ -109,11 +107,11 @@ public class Particle extends Module {
             float[] rgba = ColorUtils.rgba(c);
 
             buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-            buffer.pos(rx - s, ry - s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
-            buffer.pos(rx - s, ry + s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
-            buffer.pos(rx + s, ry - s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
-            buffer.pos(rx + s, ry + s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
-            tessellator.draw();
+            buffer.vertex(rx - s, ry - s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
+            buffer.vertex(rx - s, ry + s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
+            buffer.vertex(rx + s, ry - s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
+            buffer.vertex(rx + s, ry + s, rz).color(rgba[0], rgba[1], rgba[2], p.alpha).endVertex();
+            tessellator.end();
         }
 
         RenderSystem.enableDepthTest();
@@ -124,7 +122,7 @@ public class Particle extends Module {
 
     private void spawnParticles(double x, double y, double z) {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
-        for (int i = 0; i < (int) amount.get(); i++) {
+        for (int i = 0; i < (int) amount.get().floatValue(); i++) {
             particles.add(new ParticlePart(
                     x + rand.nextDouble(-0.3, 0.3),
                     y + rand.nextDouble(-0.1, 0.3),
@@ -167,18 +165,15 @@ public class Particle extends Module {
             z += motionZ;
             motionY -= gravity.get();
 
-            // Physics bounce
-            if (physics.get() && y <= mc.player.getPosY() && motionY < 0) {
+            if (physics.get() && y <= mc.player.getY() && motionY < 0) {
                 motionY = -motionY * 0.5;
                 motionX *= 0.7;
                 motionZ *= 0.7;
             }
 
-            // Drag
             motionX *= 0.98;
             motionZ *= 0.98;
 
-            // Fade
             if (fadeOut.get()) {
                 float lifeRatio = (float) age / lifetime.get();
                 if (lifeRatio > 0.5f) {

@@ -57,7 +57,7 @@ public class Hands extends Module {
 
     public boolean shouldRender() {
         if (mc.player == null) return false;
-        if (onlyInHand.get() && mc.player.getHeldItemMainhand().isEmpty() && mc.player.getHeldItemOffhand().isEmpty())
+        if (onlyInHand.get() && mc.player.getMainHandItem().isEmpty() && mc.player.getOffhandItem().isEmpty())
             return false;
         return true;
     }

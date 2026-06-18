@@ -20,8 +20,8 @@ public final class MathUtils {
     }
 
     public static double getBps(Entity entity, int ticks) {
-        double dx = entity.getPosX() - entity.prevPosX;
-        double dz = entity.getPosZ() - entity.prevPosZ;
+        double dx = entity.getX() - entity.xo;
+        double dz = entity.getZ() - entity.zo;
         return Math.sqrt(dx * dx + dz * dz) * 20.0 / ticks;
     }
 

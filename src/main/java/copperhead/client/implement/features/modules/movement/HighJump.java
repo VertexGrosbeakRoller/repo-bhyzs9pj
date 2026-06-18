@@ -34,7 +34,7 @@ public class HighJump extends Module {
 
     @EventHandler
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         if (mode.is("Elytra")) {
             handleElytraMode();
@@ -44,34 +44,34 @@ public class HighJump extends Module {
     }
 
     private void handleElytraMode() {
-        if (mc.player.isAlive() && mc.player.isElytraFlying()) {
-            mc.gameSettings.keyBindForward.setPressed(false);
-            mc.gameSettings.keyBindRight.setPressed(false);
-            mc.gameSettings.keyBindBack.setPressed(false);
-            mc.gameSettings.keyBindLeft.setPressed(false);
-            mc.gameSettings.keyBindJump.setPressed(false);
-            mc.gameSettings.keyBindSneak.setPressed(false);
-            mc.player.setMotion(0, jumpBoost.get(), 0);
+        if (mc.player.isAlive() && mc.player.isFallFlying()) {
+            mc.options.keyUp.setDown(false);
+            mc.options.keyRight.setDown(false);
+            mc.options.keyDown.setDown(false);
+            mc.options.keyLeft.setDown(false);
+            mc.options.keyJump.setDown(false);
+            mc.options.keyShift.setDown(false);
+            mc.player.setDeltaMovement(0, jumpBoost.get(), 0);
         }
     }
 
     private void handleElytra2Mode() {
-        if (!mc.player.abilities.isFlying
+        if (!mc.player.abilities.flying
                 && mc.player.isOnGround()
                 && !mc.player.isInWater()
                 && !mc.player.isInLava()
-                && mc.player.getItemStackFromSlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA
-                && !mc.gameSettings.keyBindJump.isKeyDown()) {
-            mc.player.jump();
+                && mc.player.getItemBySlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA
+                && !mc.options.keyJump.isDown()) {
+            mc.player.jumpFromGround();
         }
 
-        if (!mc.player.abilities.isFlying
+        if (!mc.player.abilities.flying
                 && !mc.player.isOnGround()
                 && !mc.player.isInWater()
-                && !mc.player.isElytraFlying()
-                && mc.player.getItemStackFromSlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
+                && !mc.player.isFallFlying()
+                && mc.player.getItemBySlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
             mc.player.startFallFlying();
-            mc.player.connection.sendPacket(new CEntityActionPacket(mc.player, CEntityActionPacket.Action.START_FALL_FLYING));
+            mc.player.connection.send(new CEntityActionPacket(mc.player, CEntityActionPacket.Action.START_FALL_FLYING));
         }
 
         if (mc.player.isOnGround() || mc.player.isInWater() || mc.player.isInLava()) {
@@ -79,15 +79,15 @@ public class HighJump extends Module {
         }
 
         if (mc.player.hurtTime > 0 && autoSwap.get()
-                && mc.player.getItemStackFromSlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
+                && mc.player.getItemBySlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
             swapToChestplate();
             return;
         }
 
-        if (mc.player.getItemStackFromSlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
-            mc.gameSettings.keyBindJump.setPressed(true);
-            if (mc.player.isElytraFlying()) {
-                mc.player.getMotion().add(0, jumpBoost.get() / 10, 0);
+        if (mc.player.getItemBySlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
+            mc.options.keyJump.setDown(true);
+            if (mc.player.isFallFlying()) {
+                mc.player.getDeltaMovement().add(0, jumpBoost.get() / 10, 0);
             }
         } else if (autoSwap.get()) {
             swapToElytra();
@@ -96,14 +96,14 @@ public class HighJump extends Module {
 
     @EventHandler
     public void onMotion(EventMotion e) {
-        if (mode.is("Elytra") && mc.player != null && mc.player.isElytraFlying()) {
-            mc.player.rotationPitch = 0.0F;
-            mc.player.rotationYaw = mc.player.rotationYaw;
-        } else if (mode.is("Elytra2") && mc.player != null && mc.player.isElytraFlying()) {
-            float targetYaw = mc.player.rotationYaw;
+        if (mode.is("Elytra") && mc.player != null && mc.player.isFallFlying()) {
+            mc.player.xRot = 0.0F;
+            mc.player.yRot = mc.player.yRot;
+        } else if (mode.is("Elytra2") && mc.player != null && mc.player.isFallFlying()) {
+            float targetYaw = mc.player.yRot;
             e.setYaw(targetYaw);
             e.setPitch(0.0f);
-            mc.player.rotationPitch = 0.0f;
+            mc.player.xRot = 0.0f;
         }
     }
 
@@ -112,7 +112,7 @@ public class HighJump extends Module {
         if (mode.is("Elytra") && e.isReceive()) {
             if (e.getPacket() instanceof SEntityMetadataPacket) {
                 SEntityMetadataPacket packet = (SEntityMetadataPacket) e.getPacket();
-                if (mc.player != null && packet.getEntityId() == mc.player.getEntityId() && !mc.player.isElytraFlying()) {
+                if (mc.player != null && packet.getId() == mc.player.getId() && !mc.player.isFallFlying()) {
                     e.cancel();
                 }
             }
@@ -138,7 +138,7 @@ public class HighJump extends Module {
     @Override
     public void onDisable() {
         if (mode.is("Elytra2") && autoSwap.get() && mc.player != null
-                && mc.player.getItemStackFromSlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
+                && mc.player.getItemBySlot(EquipmentSlotType.CHEST).getItem() == Items.ELYTRA) {
             swapToChestplate();
         }
         super.onDisable();
@@ -161,7 +161,7 @@ public class HighJump extends Module {
     private int getItemSlot(Item item) {
         int finalSlot = -1;
         for (int i = 0; i < 36; ++i) {
-            if (mc.player.inventory.getStackInSlot(i).getItem() == item) {
+            if (mc.player.inventory.getItem(i).getItem() == item) {
                 finalSlot = i;
                 break;
             }
@@ -175,7 +175,7 @@ public class HighJump extends Module {
                 Items.IRON_CHESTPLATE, Items.LEATHER_CHESTPLATE, Items.CHAINMAIL_CHESTPLATE};
         for (Item item : items) {
             for (int i = 0; i < 36; ++i) {
-                if (mc.player.inventory.getStackInSlot(i).getItem() == item) {
+                if (mc.player.inventory.getItem(i).getItem() == item) {
                     return i < 9 ? i + 36 : i;
                 }
             }
